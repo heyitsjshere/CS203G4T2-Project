@@ -8,9 +8,11 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class TariffCalculatorService {
 
@@ -18,7 +20,7 @@ public class TariffCalculatorService {
     private WebScrapingService webScrapingService;
 
     // Simple in-memory cache - replace with Redis in production
-    private final Map<String, CachedTariff> tariffCache = new HashMap<>();
+    private final Map<String, CachedTariff> tariffCache = new java.util.concurrent.ConcurrentHashMap<>();
     private static final long CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
     
@@ -92,6 +94,7 @@ public class TariffCalculatorService {
         } catch (Exception e) {
             // Log the error and return fallback rate
             System.err.println("Failed to scrape tariff rate: " + e.getMessage());
+            log.warn("Failed to scrape tariff rate: {}", e.getMessage(), e);
             return getFallbackTariffRate(request.getProductCategory());
         }
     }
@@ -114,10 +117,10 @@ public class TariffCalculatorService {
 
     private String getApplicableTradeAgreement(String homeCountry, String destinationCountry) {
         // Simple trade agreement logic - expand based on real agreements
-        if (isNAFTACountry(homeCountry) && isNAFTACountry(destinationCountry)) {
+        if (isUSMCACountry(homeCountry) && isUSMCACountry(destinationCountry)) {
             return "USMCA";
         } else if (isEUCountry(homeCountry) && isEUCountry(destinationCountry)) {
-            return "EU Single Market";
+            return "EU Trade Agreement";
         } else if (isWTOMember(homeCountry) && isWTOMember(destinationCountry)) {
             return "WTO Most Favored Nation";
         }
@@ -146,7 +149,7 @@ public class TariffCalculatorService {
         );
     }
 
-    private boolean isNAFTACountry(String country) {
+    private boolean isUSMCACountry(String country) {
         return "USA".equalsIgnoreCase(country) || 
                "CAN".equalsIgnoreCase(country) || 
                "MEX".equalsIgnoreCase(country);
